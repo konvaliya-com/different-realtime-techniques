@@ -7,22 +7,24 @@ type Message = {
   message: string;
 }
 
+
 const Websockets = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [value, setValue] = useState('');
   const websocket = useRef<WebSocket>();
   const [isConnected, setIsConnected] = useState(false);
   const [username, setUsername] = useState('');  
+  const [roomId, setRoomId] = useState('');
 
   const connect = () => {
-    websocket.current = new WebSocket('ws://localhost:5000');
+    websocket.current = new WebSocket('ws://localhost:5000?roomId=' + roomId);
     
     websocket.current.onopen = () => {
       setIsConnected(true);
       const message = {
         event: 'connection',
         username,
-        id: Date.now(),
+        roomId,
       }
 
       websocket.current?.send(JSON.stringify(message));
@@ -46,7 +48,7 @@ const Websockets = () => {
     const message = {
       username,
       message: value,
-      id: Date.now(),
+      roomId,
       event: 'message'
     }
     websocket.current?.send(JSON.stringify(message));
@@ -62,6 +64,11 @@ const Websockets = () => {
                     onChange={e => setUsername(e.target.value)}
                     type="text"
                     placeholder="Enter your name"/>
+                <input
+                    value={roomId}
+                    onChange={e => setRoomId(e.target.value)}
+                    type="string"
+                    placeholder="Enter room id"/>
                 <button onClick={connect}>Join</button>
             </div>
         </div>

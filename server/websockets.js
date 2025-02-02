@@ -1,48 +1,40 @@
 import {WebSocketServer} from 'ws';
+import url from 'url';
+import { log } from 'console';
 
 const wsServer = new WebSocketServer({ 
   port: 5000,
-  // noServer: true 
 }, () => {
   console.log('Websocket server running on port 5000');
   }
 );
 
 
-const broadcast = (message, id) => {
+const broadcast = (message, roomId) => {
   wsServer.clients.forEach(client => {
-    // if(client.id === id) {
+    // client.readyState === WebSocket.OPEN на случай, если клиент отключился
+    if (client.roomId === roomId && client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify(message));
-    // }
+    }
   });
 };
 
-// когда клиент подключается к серверу, есть error, close, 
-wsServer.on('connection', (ws) => {
+wsServer.on('connection', (ws, req) => {
+  // для того, чтобы сделать приватные комнаты, присваиваем каждому клиенту id комнаты
+  // и в broadcast отправлять сообщение только тем клиентам, у которых id комнаты совпадает с тем, 
+  // что пришел в сообщении с клиента
+  const parameters = url.parse(req.url, true);
+  ws.roomId = parameters.query.roomId;
 
-  // для того, чтобы сделать приватные комнаты, можем присваоить каждому клиенту id комнаты
-  // и в broadcast отправлять сообщение только тем клиентам, у которых id комнаты совпадает
-  // ws.id = Date.now();
-
-  // ws - это объект, который представляет подключенного клиента
-  // подписываемся на событие message, есть еще open, close, error, ping/pong, upgrade
   ws.on('message', (message) => {
-    message = JSON.parse(message);// обмен сообщениями в строковом формате
-    // все поля в message - это поля, которые мы отправляем с фронтенда
-    // и они кастомные, могут быть любыми
-    // структура нашего сообщения {event: 'message или connection', id, date, username, message}
+    message = JSON.parse(message);
+    // структура нашего сообщения {event: 'message или connection', date, username, message, roomID}
     switch (message.event) {
       case 'message':
-        // отправляем сообщение всем клиентам
-        // если написать ws.send, то сообщение отправится только тому клиенту, который его отправил
-        // wsServer.clients - это массив всех подключенных клиентов
-        broadcast(message);
+        broadcast(message, message.roomId);
         break;
       case 'connection':
-        console.log('connection', message);
-        
-        // для connection, может быть другая логика, тут такая же
-        broadcast(message);
+        broadcast(message, message.roomId);
         break;
     }
     
